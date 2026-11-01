@@ -44,6 +44,17 @@ describe('extractFromText', () => {
     expect(extractFromText(null)).toMatchObject({ price: '', quantity: '' })
   })
 
+  it('tolera que el OCR lea la barra de S/ como pipe', () => {
+    const r = extractFromText('ACEITE S| 12.90 900 ml')
+    expect(r.price).toBe('12.9')
+    expect(r.quantity).toBe('900 ml')
+  })
+
+  it('tolera que el OCR confunda la S con un 5', () => {
+    const r = extractFromText('LECHE 5/ 4.50 400 g')
+    expect(r.price).toBe('4.5')
+  })
+
   it('reporta que campos encontro, para que la UI avise al usuario', () => {
     const r = extractFromText('S/ 9.90 500 g')
     expect(r.found).toContain('cantidad')

@@ -274,3 +274,18 @@ body {
 @media (max-width: 24rem) {
   .entry-grid { grid-template-columns: 1fr; }
 }
+
+/* --- Progreso del escaneo --- */
+.progress {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width .2s ease;
+}
+.btn-cancel { padding: .4rem .9rem; font-size: .9rem; }

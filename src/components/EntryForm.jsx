@@ -1,13 +1,14 @@
 import { useMemo, useRef, useState } from 'react'
 import { normalize } from '../lib/units.js'
 import { formatPerBase, formatQuantity } from '../lib/format.js'
-import { scanLabel } from '../lib/ocr.js'
+import { scanLabel, cancelScan } from '../lib/ocr.js'
 
 const EMPTY = { name: '', price: '', quantity: '' }
 
 export default function EntryForm({ onAdd }) {
   const [draft, setDraft] = useState(EMPTY)
-  const [scanState, setScanState] = useState(null) // null | 'cargando' | 'leyendo' | error
+  // null cuando no hay escaneo; {phase, pct} mientras corre.
+  const [scan, setScan] = useState(null)
   const [scanNote, setScanNote] = useState('')
   const fileRef = useRef(null)
 
@@ -32,10 +33,10 @@ export default function EntryForm({ onAdd }) {
     e.target.value = '' // permite re-escanear la misma foto
     if (!file) return
 
-    setScanState('cargando')
+    setScan({ phase: 'preparando foto', pct: 0 })
     setScanNote('')
     try {
-      const result = await scanLabel(file, (phase) => setScanState(phase))
+      const result = await scanLabel(file, setScan)
       // El OCR solo PRE-LLENA. No agrega nada a la lista por su cuenta.
       setDraft((d) => ({
         ...d,
@@ -47,14 +48,26 @@ export default function EntryForm({ onAdd }) {
           ? `Leí ${result.found.join(' y ')}. Revisa y corrige si hace falta.`
           : 'No pude leer la etiqueta. Escribe los datos a mano.',
       )
-      setScanState(null)
+      setScan(null)
     } catch (err) {
-      setScanState('error')
-      setScanNote('El escaneo falló. Puedes escribir los datos a mano.')
+      // Un timeout deja el worker moliendo: hay que cortarlo o seguira gastando bateria.
+      await cancelScan()
+      setScan(null)
+      setScanNote(
+        err?.message === 'TIMEOUT'
+          ? 'El escaneo tardó demasiado y lo corté. Escribe los datos a mano.'
+          : 'El escaneo falló, quizá por la conexión. Escribe los datos a mano.',
+      )
     }
   }
 
-  const scanning = scanState === 'cargando' || scanState === 'leyendo'
+  async function abort() {
+    await cancelScan()
+    setScan(null)
+    setScanNote('Escaneo cancelado.')
+  }
+
+  const scanning = scan !== null
 
   return (
     <form className="card entry" onSubmit={submit}>
@@ -65,8 +78,25 @@ export default function EntryForm({ onAdd }) {
           onClick={() => fileRef.current?.click()}
           disabled={scanning}
         >
-          {scanning ? 'Leyendo etiqueta…' : '📷 Escanear etiqueta'}
+          {scanning ? `${scan.phase}… ${scan.pct}%` : '📷 Escanear etiqueta'}
         </button>
+
+        {scanning && (
+          <>
+            <div
+              className="progress"
+              role="progressbar"
+              aria-valuenow={scan.pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div className="progress-bar" style={{ width: `${scan.pct}%` }} />
+            </div>
+            <button type="button" className="btn btn-ghost btn-cancel" onClick={abort}>
+              Cancelar
+            </button>
+          </>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -76,7 +106,10 @@ export default function EntryForm({ onAdd }) {
           hidden
         />
         <p className="hint">
-          {scanNote || 'El escaneo solo rellena el formulario. Tú confirmas antes de agregar.'}
+          {scanNote ||
+            (scanning
+              ? 'La primera vez descarga el motor de lectura. Después es más rápido.'
+              : 'El escaneo solo rellena el formulario. Tú confirmas antes de agregar.')}
         </p>
       </div>
 
