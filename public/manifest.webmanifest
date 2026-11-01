@@ -1,0 +1,18 @@
+{
+  "name": "Lorito — precio real",
+  "short_name": "Lorito",
+  "description": "Compara precios de supermercado por kilo, litro o unidad.",
+  "start_url": "/lorito/",
+  "scope": "/lorito/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1b7f4c",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
